@@ -30,6 +30,11 @@ import { isReliableGameMove } from '../utils/evaluationReliability';
 import { QualityBadge } from './QualityBadge';
 import { qualityAppearance } from '../utils/moveQuality';
 import { colorLabel, useI18n } from '../utils/i18n';
+import {
+  parseCoachMoveSegments,
+  type AiCoachMovePreview,
+  type CoachMoveResolutionContext,
+} from '../utils/coachMoveLinks';
 
 interface AiCoachPanelProps {
   game: GameAnalysis;
@@ -43,6 +48,7 @@ interface AiCoachPanelProps {
   onReanchorToPly: (ply: number) => void;
   onFlipBoard: () => void;
   onExplore: (anchorPly: number, line: string[], label: string, autoplay?: boolean) => void;
+  onPreviewMove?: (preview: AiCoachMovePreview | null) => void;
 }
 
 interface ChatMessage {
@@ -106,33 +112,116 @@ function formatPlyLabel(game: GameAnalysis, ply: number): string {
   return `${m.moveNumber}.${m.color === 'b' ? '..' : ''} ${m.san}`;
 }
 
-function renderInlineMarkdown(text: string): React.ReactNode[] {
+interface MoveRenderOptions {
+  moveContext: CoachMoveResolutionContext;
+  activeKey: string | null;
+  pinnedKey: string | null;
+  tooltip: string;
+  onHoverChange: (entry: { key: string; preview: AiCoachMovePreview } | null) => void;
+  onTogglePin: (entry: { key: string; preview: AiCoachMovePreview }) => void;
+}
+
+function renderMoveAwareText(
+  text: string,
+  chainFen: string | null,
+  precedingText: string,
+  tokenPrefix: string,
+  options: MoveRenderOptions,
+): { nodes: React.ReactNode[]; endChainFen: string | null } {
+  const { segments, endChainFen } = parseCoachMoveSegments(text, options.moveContext, chainFen, precedingText);
+  const nodes = segments.map((seg, idx) => {
+    if (seg.type === 'text') return seg.text;
+    const tokenKey = `${tokenPrefix}-${idx}-${seg.preview.uci}`;
+    const isPinned = options.pinnedKey === tokenKey;
+    const isActive = options.activeKey === tokenKey;
+    return (
+      <button
+        key={tokenKey}
+        type="button"
+        className={`ai-coach-move-token${isActive ? ' is-active' : ''}${isPinned ? ' is-pinned' : ''}`}
+        title={options.tooltip}
+        aria-pressed={isPinned}
+        onMouseEnter={() => options.onHoverChange({ key: tokenKey, preview: seg.preview })}
+        onMouseLeave={() => options.onHoverChange(null)}
+        onFocus={() => options.onHoverChange({ key: tokenKey, preview: seg.preview })}
+        onBlur={() => options.onHoverChange(null)}
+        onClick={(ev) => {
+          ev.stopPropagation();
+          options.onTogglePin({ key: tokenKey, preview: seg.preview });
+        }}
+      >
+        {seg.text}
+      </button>
+    );
+  });
+  return { nodes, endChainFen };
+}
+
+function renderInlineMarkdown(
+  text: string,
+  blockKey: string,
+  options?: MoveRenderOptions,
+): React.ReactNode[] {
   const tokens: React.ReactNode[] = [];
   const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let keyIdx = 0;
+  let chainFen: string | null = null;
+  let precedingText = '';
+
+  const pushPlainSegment = (raw: string, segPrefix: string) => {
+    if (!raw) return;
+    if (!options) {
+      tokens.push(raw);
+      return;
+    }
+    const res = renderMoveAwareText(raw, chainFen, precedingText, segPrefix, options);
+    chainFen = res.endChainFen;
+    precedingText += raw;
+    tokens.push(...res.nodes);
+  };
 
   while ((match = pattern.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      tokens.push(text.slice(lastIndex, match.index));
+      pushPlainSegment(text.slice(lastIndex, match.index), `${blockKey}-t-${keyIdx}`);
     }
     const token = match[0];
     if (token.startsWith('**') && token.endsWith('**')) {
-      tokens.push(<strong key={`b-${keyIdx++}`}>{token.slice(2, -2)}</strong>);
+      const inner = token.slice(2, -2);
+      if (!options) {
+        tokens.push(<strong key={`b-${keyIdx++}`}>{inner}</strong>);
+      } else {
+        const res = renderMoveAwareText(inner, chainFen, precedingText, `${blockKey}-b-${keyIdx}`, options);
+        chainFen = res.endChainFen;
+        precedingText += inner;
+        tokens.push(<strong key={`b-${keyIdx++}`}>{res.nodes}</strong>);
+      }
     } else if (token.startsWith('`') && token.endsWith('`')) {
-      tokens.push(<code key={`c-${keyIdx++}`}>{token.slice(1, -1)}</code>);
+      const inner = token.slice(1, -1);
+      if (!options) {
+        tokens.push(<code key={`c-${keyIdx++}`}>{inner}</code>);
+      } else {
+        const res = renderMoveAwareText(inner, chainFen, precedingText, `${blockKey}-c-${keyIdx}`, options);
+        chainFen = res.endChainFen;
+        precedingText += inner;
+        tokens.push(<code key={`c-${keyIdx++}`}>{res.nodes}</code>);
+      }
     }
     lastIndex = pattern.lastIndex;
   }
 
   if (lastIndex < text.length) {
-    tokens.push(text.slice(lastIndex));
+    pushPlainSegment(text.slice(lastIndex), `${blockKey}-tail-${keyIdx}`);
   }
   return tokens;
 }
 
-const SafeCoachMarkdown: React.FC<{ content: string }> = ({ content }) => {
+const SafeCoachMarkdown: React.FC<{
+  content: string;
+  msgKey?: string;
+  moveOptions?: MoveRenderOptions;
+}> = ({ content, msgKey = 'msg', moveOptions }) => {
   const lines = content.replace(/\r\n/g, '\n').split('\n');
   const blocks: React.ReactNode[] = [];
   let listItems: string[] = [];
@@ -141,19 +230,20 @@ const SafeCoachMarkdown: React.FC<{ content: string }> = ({ content }) => {
 
   const flushList = () => {
     if (listItems.length === 0) return;
+    const listIdx = keyCounter++;
     if (listOrdered) {
       blocks.push(
-        <ol key={`ol-${keyCounter++}`}>
+        <ol key={`ol-${listIdx}`}>
           {listItems.map((item, idx) => (
-            <li key={idx}>{renderInlineMarkdown(item)}</li>
+            <li key={idx}>{renderInlineMarkdown(item, `${msgKey}-ol-${listIdx}-${idx}`, moveOptions)}</li>
           ))}
         </ol>,
       );
     } else {
       blocks.push(
-        <ul key={`ul-${keyCounter++}`}>
+        <ul key={`ul-${listIdx}`}>
           {listItems.map((item, idx) => (
-            <li key={idx}>{renderInlineMarkdown(item)}</li>
+            <li key={idx}>{renderInlineMarkdown(item, `${msgKey}-ul-${listIdx}-${idx}`, moveOptions)}</li>
           ))}
         </ul>,
       );
@@ -170,8 +260,9 @@ const SafeCoachMarkdown: React.FC<{ content: string }> = ({ content }) => {
 
     if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
       flushList();
+      const headingIdx = keyCounter++;
       const headingText = trimmed.replace(/^#{1,3}\s+/, '');
-      blocks.push(<h4 key={`h-${keyCounter++}`}>{renderInlineMarkdown(headingText)}</h4>);
+      blocks.push(<h4 key={`h-${headingIdx}`}>{renderInlineMarkdown(headingText, `${msgKey}-h-${headingIdx}`, moveOptions)}</h4>);
       continue;
     }
 
@@ -192,7 +283,8 @@ const SafeCoachMarkdown: React.FC<{ content: string }> = ({ content }) => {
     }
 
     flushList();
-    blocks.push(<p key={`p-${keyCounter++}`}>{renderInlineMarkdown(trimmed)}</p>);
+    const paraIdx = keyCounter++;
+    blocks.push(<p key={`p-${paraIdx}`}>{renderInlineMarkdown(trimmed, `${msgKey}-p-${paraIdx}`, moveOptions)}</p>);
   }
 
   flushList();
@@ -211,6 +303,7 @@ export const AiCoachPanel: React.FC<AiCoachPanelProps> = ({
   onReanchorToPly,
   onFlipBoard,
   onExplore,
+  onPreviewMove,
 }) => {
   const { lang, tr } = useI18n();
   const [modelFamily, setModelFamily] = useState<AiCoachModelFamily>(readStoredModelFamily);
@@ -226,6 +319,8 @@ export const AiCoachPanel: React.FC<AiCoachPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [initialQuestion, setInitialQuestion] = useState('');
   const [followUpInput, setFollowUpInput] = useState('');
+  const [hoveredPreview, setHoveredPreview] = useState<{ key: string; preview: AiCoachMovePreview } | null>(null);
+  const [pinnedPreview, setPinnedPreview] = useState<{ key: string; preview: AiCoachMovePreview } | null>(null);
 
   const activeRequestIdRef = useRef<string | null>(null);
   const lastAutoTokenRef = useRef<number>(0);
@@ -235,6 +330,40 @@ export const AiCoachPanel: React.FC<AiCoachPanelProps> = ({
   const anchorMove: MoveAnalysis | undefined = anchorPly > 0 ? game.moves[anchorPly - 1] : undefined;
   const isPositionOnly = !anchorMove;
   const hasDrifted = currentPly !== anchorPly;
+
+  useEffect(() => {
+    setHoveredPreview(null);
+    setPinnedPreview(null);
+  }, [currentPly, anchorPly]);
+
+  useEffect(() => {
+    onPreviewMove?.(hoveredPreview?.preview ?? pinnedPreview?.preview ?? null);
+  }, [hoveredPreview, pinnedPreview, onPreviewMove]);
+
+  useEffect(() => {
+    return () => {
+      onPreviewMove?.(null);
+    };
+  }, [onPreviewMove]);
+
+  const moveRenderOptions = useMemo<MoveRenderOptions>(() => {
+    const moveContext: CoachMoveResolutionContext = {
+      currentFen,
+      anchorFenBefore: anchorMove?.fenBefore,
+      anchorFenAfter: anchorMove?.fenAfter,
+      anchorMoveNumber: anchorMove?.moveNumber,
+      anchorColor: anchorMove?.color,
+    };
+    return {
+      moveContext,
+      activeKey: hoveredPreview?.key ?? pinnedPreview?.key ?? null,
+      pinnedKey: pinnedPreview?.key ?? null,
+      tooltip: tr('Auf dem Brett animieren (Klick fixiert)', 'Preview move on board (click to pin)'),
+      onHoverChange: setHoveredPreview,
+      onTogglePin: (entry) =>
+        setPinnedPreview((prev) => (prev?.key === entry.key ? null : entry)),
+    };
+  }, [currentFen, anchorMove, hoveredPreview?.key, pinnedPreview?.key, tr]);
 
   const playerColor = useMemo(
     () => resolvePlayerColor(game.white, game.black, targetPlayer, game.site),
@@ -819,7 +948,7 @@ export const AiCoachPanel: React.FC<AiCoachPanelProps> = ({
                     ))}
                   </div>
                 )}
-                <SafeCoachMarkdown content={msg.text} />
+                <SafeCoachMarkdown content={msg.text} msgKey={msg.id} moveOptions={moveRenderOptions} />
                 <div className="ai-coach-msg-meta">
                   <span>
                     {formatModelDisplay(msg.modelId)}
@@ -857,7 +986,7 @@ export const AiCoachPanel: React.FC<AiCoachPanelProps> = ({
                 ))}
               </div>
             )}
-            {streamingText && <SafeCoachMarkdown content={streamingText} />}
+            {streamingText && <SafeCoachMarkdown content={streamingText} msgKey="stream" moveOptions={moveRenderOptions} />}
           </div>
         )}
 

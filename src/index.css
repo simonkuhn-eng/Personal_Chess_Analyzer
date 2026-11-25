@@ -639,6 +639,7 @@ select {
 
 .board-arrow-legend-green { background: var(--arrow-best); }
 .board-arrow-legend-orange { background: var(--arrow-threat); }
+.board-arrow-legend-preview { background: #38bdf8; }
 
 .right-side-column {
   width: 390px;
@@ -1296,6 +1297,7 @@ select {
 .board-arrow-best { fill: var(--arrow-best); }
 .board-arrow-threat { fill: var(--arrow-threat); }
 .board-arrow-mistake { fill: var(--arrow-mistake); }
+.board-arrow-preview { fill: rgba(56, 189, 248, 0.88); }
 
 /* Analysis Side Panel */
 .analysis-panel {
@@ -5294,14 +5296,22 @@ select.opening-favorite-color:focus-visible { outline: 2px solid var(--chess-gre
 }
 
 .right-side-column.is-ai-coach-mode {
-  width: 455px;
-  min-width: 380px;
+  width: clamp(520px, 40vw, 640px);
+  min-width: 460px;
+}
+
+.review-layout:has(> .right-side-column.is-ai-coach-mode) {
+  --board-size: min(calc(100vh - 195px), calc(100vw - clamp(520px, 40vw, 640px) - 96px), 780px);
 }
 
 @media (max-width: 1250px) {
   .right-side-column.is-ai-coach-mode {
-    width: 390px;
-    min-width: 340px;
+    width: 450px;
+    min-width: 380px;
+  }
+
+  .review-layout:has(> .right-side-column.is-ai-coach-mode) {
+    --board-size: min(calc(100vh - 195px), calc(100vw - 450px - 96px), 680px);
   }
 }
 
@@ -5780,4 +5790,38 @@ select.opening-favorite-color:focus-visible { outline: 2px solid var(--chess-gre
   min-width: 0;
   font-size: 0.78rem !important;
   padding: 7px 10px !important;
+}
+
+.ai-coach-move-token {
+  appearance: none;
+  display: inline;
+  margin: 0 1px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-bottom: 1px dashed rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.11);
+  color: #bae6fd;
+  font: inherit;
+  font-weight: 700;
+  line-height: inherit;
+  cursor: pointer;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ai-coach-move-token:hover,
+.ai-coach-move-token:focus-visible,
+.ai-coach-move-token.is-active {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.85);
+  color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.28);
+  outline: none;
+}
+
+.ai-coach-move-token.is-pinned {
+  background: rgba(129, 182, 76, 0.24);
+  border-color: rgba(129, 182, 76, 0.85);
+  border-bottom-style: solid;
+  color: #ffffff;
 }

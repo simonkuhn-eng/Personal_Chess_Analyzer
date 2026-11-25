@@ -30,6 +30,7 @@ interface ChessboardProps {
   bestMoveArrow?: { from: string; to: string } | null;
   threatArrows?: Array<{ from: string; to: string }>;
   mistakeMoveArrow?: { from: string; to: string } | null;
+  previewArrow?: { from: string; to: string } | null;
   hintSquare?: string | null;
   /** Zweites Hinweisfeld (Ziel) für "Korrekten Zug zeigen" */
   hintTargetSquare?: string | null;
@@ -46,6 +47,7 @@ export const Chessboard: React.FC<ChessboardProps> = ({
   bestMoveArrow,
   threatArrows = [],
   mistakeMoveArrow,
+  previewArrow,
   hintSquare,
   hintTargetSquare,
   onMove,
@@ -437,11 +439,19 @@ export const Chessboard: React.FC<ChessboardProps> = ({
 
       {/* SVG arrows layer */}
       <svg className="arrows-overlay" viewBox="0 0 100 100" aria-label="Analyse-Pfeile">
-        {displayBoardArrows(bestMoveArrow, threatArrows, mistakeMoveArrow).map(arrow => {
+        {displayBoardArrows(bestMoveArrow, threatArrows, mistakeMoveArrow, previewArrow).map(arrow => {
           const geometry = boardArrowGeometry(arrow.from, arrow.to, isFlipped);
-          return geometry ? <path key={arrow.from + arrow.to} d={geometry.path} className={'board-arrow board-arrow-' + arrow.kind}
+          const arrowTitle =
+            arrow.kind === 'preview'
+              ? 'Vorschau'
+              : arrow.kind === 'best'
+                ? 'Bester Zug'
+                : arrow.kind === 'threat'
+                  ? 'Gegnerische Bedrohung'
+                  : 'Gespielter Fehler';
+          return geometry ? <path key={arrow.from + arrow.to + arrow.kind} d={geometry.path} className={'board-arrow board-arrow-' + arrow.kind}
             data-arrow-kind={arrow.kind} data-from={arrow.from} data-to={arrow.to}>
-            <title>{arrow.kind === 'best' ? 'Bester Zug' : arrow.kind === 'threat' ? 'Gegnerische Bedrohung' : 'Gespielter Fehler'}: {arrow.from}–{arrow.to}</title>
+            <title>{arrowTitle}: {arrow.from}–{arrow.to}</title>
           </path> : null;
         })}
       </svg>

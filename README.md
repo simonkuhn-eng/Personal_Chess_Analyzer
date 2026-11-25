@@ -17,8 +17,8 @@ Full move-by-move win-chance graph, top 3 Stockfish continuations, best-move/thr
 
 ![Game Review](docs/screenshots/game-review.png)
 
-### Desktop AI Move Coach (Stockfish MCP Tool Calling)
-Explains mistakes in plain coaching principles ("rules of thumb") rather than 20-ply computer lines. Supports follow-up questions in context and optional Stockfish variation checks via an embedded MCP server (`compare_moves`, `evaluate_position`, `inspect_position`).
+### Desktop AI Move Coach (Stockfish MCP Tool Calling & Interactive Board Preview)
+Explains mistakes in plain coaching principles ("rules of thumb") rather than 20-ply computer lines. Supports follow-up questions in context, optional Stockfish variation checks via an embedded MCP server (`compare_moves`, `evaluate_position`, `inspect_position`), and interactive move links—hover over any move mentioned in the explanation (e.g., `11... Nxb4!` or `Bxg3`) to animate it live on the board with a preview arrow, or click to pin it.
 
 ![AI Move Coach](docs/screenshots/ai-coach.png)
 
@@ -37,7 +37,7 @@ Tracks form curves, error density across 10-move windows, advantage conversion &
 ## Key Engineering Highlights
 
 - **Reliable Evaluation Pipeline (`src/utils/analysis.ts`, `electron/stockfish.ts`):** Separates UCI opening-book tagging (`openingAnnotation`) from actual move quality so bad moves in theory are still flagged, validates search bounds/depths (`evaluationReliability.ts`), and verifies brilliant sacrifices with targeted follow-up searches.
-- **Local MCP Server for AI Coaching (`electron/aiCoach.ts`, `electron/aiCoachMcp.ts`, `electron/chessPositionFacts.ts`):** Runs an authenticated loopback HTTP JSON-RPC MCP server alongside Stockfish so the coaching model can query candidate lines on demand while grounding explanations in computed structural chess facts (doubled/isolated pawns, pins, king safety).
+- **Local MCP Server & Interactive Coaching UI (`electron/aiCoach.ts`, `electron/aiCoachMcp.ts`, `src/utils/coachMoveLinks.ts`):** Runs an authenticated loopback HTTP JSON-RPC MCP server alongside Stockfish so the coaching model can query candidate lines on demand while grounding explanations in computed structural chess facts (doubled/isolated pawns, pins, king safety). Mentioned moves (English or German SAN) are parsed against legal board positions so hovering animates the candidate move live on the board.
 - **Deterministic Spaced Repetition & Opening Trainer (`src/utils/reviews.ts`, `src/utils/trainingDeck.ts`, `src/utils/openingTraining.ts`):** Schedules cards based on unassisted solves vs. hint-assisted solves, detects checks/forks/missed wins, and offers an opening repertoire drill mode with live Stockfish sparring.
 - **Offline-First Storage & LAN / USB Sync (`electron/db.ts`, `electron/lanSync.ts`):** Persists games locally in SQLite with atomic writes and schema backups, plus direct local-network (HTTP) or USB (`adb reverse`) two-way syncing between Desktop and Android without any cloud account.
 - **Bilingual UI (`Deutsch` / `English`):** Instant live language switching in **Settings**.

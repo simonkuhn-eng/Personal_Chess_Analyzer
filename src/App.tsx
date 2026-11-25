@@ -21,6 +21,7 @@ import { TopMovesPanel } from './components/TopMovesPanel';
 import { sounds } from './utils/sound';
 import { reviewBadgeQuality, terminalEval } from './utils/analysis';
 import { colorLabel, LanguageProvider, trStatic, turnToMoveLabel } from './utils/i18n';
+import type { AiCoachMovePreview } from './utils/coachMoveLinks';
 import { legalReviewTopMoves, matchingLiveReview, reviewBestArrow, reviewMoveBestArrow, reviewPosition, type LiveReviewEvaluation } from './utils/reviewPresentation';
 import { capturedMaterial, capturedMaterialAfterLine, threatenedPieceArrows } from './utils/boardPresentation';
 import {
@@ -120,6 +121,7 @@ export const App: React.FC = () => {
   const [isAiCoachOpen, setIsAiCoachOpen] = useState<boolean>(false);
   const [aiCoachAnchorPly, setAiCoachAnchorPly] = useState<number>(0);
   const [aiCoachStartToken, setAiCoachStartToken] = useState<number>(0);
+  const [aiCoachPreview, setAiCoachPreview] = useState<AiCoachMovePreview | null>(null);
 
   // Stored state
   const [gamesList, setGamesList] = useState<ArchiveItem[]>([]);
@@ -273,7 +275,13 @@ export const App: React.FC = () => {
     if (color) setIsFlipped(color === 'b');
   }, [currentGame, settings]);
 
-  const selectGamePly = (ply: number) => { setVariation(null); setVariationPlaying(false); setIsPlaying(false); setCurrentPly(ply); };
+  const selectGamePly = (ply: number) => {
+    setVariation(null);
+    setVariationPlaying(false);
+    setIsPlaying(false);
+    setAiCoachPreview(null);
+    setCurrentPly(ply);
+  };
   const activeVariation = variation && variation.gameId === currentGame?.id && variation.anchorPly === currentPly ? variation : null;
   const exploreLine = (anchorPly: number, line: string[], label: string, autoplay = false, cursor = 1) => {
     if (!currentGame) return;
@@ -327,6 +335,7 @@ export const App: React.FC = () => {
     }
     if (activeTab !== 'review' || !currentGame) {
       setIsAiCoachOpen(false);
+      setAiCoachPreview(null);
     }
   }, [activeTab, currentGame, isImportOpen, isChessComOpen, isSettingsOpen, isTrainingOpen, isPlaying]);
 
@@ -816,12 +825,17 @@ export const App: React.FC = () => {
                 </>
               )}
               {/* Left Board Column */}
+              {(() => {
+                const activeAiPreview = isAiCoachOpen && canUseAiCoach ? aiCoachPreview : null;
+                const displayBoardFen = activeAiPreview ? activeAiPreview.fenAfter : currentFen;
+                const displayTurnColor = displayBoardFen.split(' ')[1] === 'b' ? 'b' : 'w';
+                return (
               <div className="board-column">
                 <div className="board-stage">
                   <div className="board-player-row board-player-top">
                     <div className="board-player-label">
                       <strong>{isFlipped ? currentGame.white : currentGame.black}</strong>
-                      {(currentFen.split(' ')[1] === 'b' ? 'b' : 'w') === (isFlipped ? 'w' : 'b') ? (
+                      {displayTurnColor === (isFlipped ? 'w' : 'b') ? (
                         <span className={`turn-indicator-pill is-compact ${isFlipped ? 'is-white' : 'is-black'}`}>
                           <i className="turn-indicator-swatch" aria-hidden="true" />
                           {turnToMoveLabel(isFlipped ? 'w' : 'b', lang)}
@@ -844,14 +858,16 @@ export const App: React.FC = () => {
                       />
                     )}
                     <Chessboard
-                      fen={currentFen}
+                      fen={displayBoardFen}
                       isFlipped={isFlipped}
-                      lastMove={lastMoveHighlight}
-                      bestMoveArrow={bestMoveArrow}
-                      threatArrows={threatArrows}
+                      lastMove={activeAiPreview ? { from: activeAiPreview.from, to: activeAiPreview.to } : lastMoveHighlight}
+                      bestMoveArrow={activeAiPreview ? null : bestMoveArrow}
+                      threatArrows={activeAiPreview ? [] : threatArrows}
+                      previewArrow={activeAiPreview ? { from: activeAiPreview.from, to: activeAiPreview.to } : null}
                       interactive={true}
                       onMove={move => {
                         if (!currentGame) return;
+                        setAiCoachPreview(null);
                         const base = activeVariation || { gameId: currentGame.id, anchorPly: position.ply, returnPly: currentPly, line: [], cursor: 0, label: tr('Eigene Variante', 'Custom line') };
                         const next = appendVariation(position.fen, base, move.from + move.to + (move.promotion || ''));
                         if (next) { setIsPlaying(false); setVariationPlaying(false); setVariation(next); }
@@ -861,7 +877,7 @@ export const App: React.FC = () => {
                   <div className="board-player-row board-player-bottom">
                     <div className="board-player-label">
                       <strong>{isFlipped ? currentGame.black : currentGame.white}</strong>
-                      {(currentFen.split(' ')[1] === 'b' ? 'b' : 'w') === (isFlipped ? 'b' : 'w') ? (
+                      {displayTurnColor === (isFlipped ? 'b' : 'w') ? (
                         <span className={`turn-indicator-pill is-compact ${isFlipped ? 'is-black' : 'is-white'}`}>
                           <i className="turn-indicator-swatch" aria-hidden="true" />
                           {turnToMoveLabel(isFlipped ? 'b' : 'w', lang)}
@@ -872,14 +888,28 @@ export const App: React.FC = () => {
                     </div>
                     {captures && <CapturedPieces color={isFlipped ? 'b' : 'w'} pieces={isFlipped ? captures.byBlack : captures.byWhite} lead={isFlipped ? captures.blackLead : captures.whiteLead} />}
                   </div>
-                  {(bestMoveArrow || threatArrows.length > 0) && (
+                  {(activeAiPreview || bestMoveArrow || threatArrows.length > 0) && (
                     <div className="board-arrow-legend" aria-label={tr('Bedeutung der Pfeile', 'Arrow legend')}>
-                      {bestMoveArrow && <span title={tr('Beste Möglichkeit für den gerade gespielten Zug. Der Pfeil bezieht sich auf die Stellung vor diesem Zug.', 'Engine best move for the position before the played move.')}><i className="board-arrow-legend-green" aria-hidden="true" /> {`${tr('Engine-Bestzug zu', 'Engine best move for')} ${reviewedStep?.number || currentMove?.moveNumber}${reviewedColor === 'b' ? '...' : '.'} ${reviewedStep?.san || currentMove?.san} · ${colorLabel(reviewedColor === 'b' ? 'b' : 'w', lang)}`}</span>}
-                      {threatArrows.length > 0 && <span title={tr('Legale mögliche Schläge des Gegners und Schachgebote; keine Behauptung einer erzwungenen Variante.', 'Legal opponent captures and checks; not necessarily forced.')}><i className="board-arrow-legend-orange" aria-hidden="true" /> {tr('Mögliche gegnerische Bedrohung', 'Possible opponent threat')}</span>}
+                      {activeAiPreview ? (
+                        <span>
+                          <i className="board-arrow-legend-preview" aria-hidden="true" />{' '}
+                          {tr(
+                            `Vorschau: ${activeAiPreview.label} (${activeAiPreview.from} → ${activeAiPreview.to})`,
+                            `Preview: ${activeAiPreview.label} (${activeAiPreview.from} → ${activeAiPreview.to})`,
+                          )}
+                        </span>
+                      ) : (
+                        <>
+                          {bestMoveArrow && <span title={tr('Beste Möglichkeit für den gerade gespielten Zug. Der Pfeil bezieht sich auf die Stellung vor diesem Zug.', 'Engine best move for the position before the played move.')}><i className="board-arrow-legend-green" aria-hidden="true" /> {`${tr('Engine-Bestzug zu', 'Engine best move for')} ${reviewedStep?.number || currentMove?.moveNumber}${reviewedColor === 'b' ? '...' : '.'} ${reviewedStep?.san || currentMove?.san} · ${colorLabel(reviewedColor === 'b' ? 'b' : 'w', lang)}`}</span>}
+                          {threatArrows.length > 0 && <span title={tr('Legale mögliche Schläge des Gegners und Schachgebote; keine Behauptung einer erzwungenen Variante.', 'Legal opponent captures and checks; not necessarily forced.')}><i className="board-arrow-legend-orange" aria-hidden="true" /> {tr('Mögliche gegnerische Bedrohung', 'Possible opponent threat')}</span>}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
+                );
+              })()}
 
               <div className={`right-side-column ${isAiCoachOpen && canUseAiCoach ? 'is-ai-coach-mode' : ''}`}>
                 <ReviewVariationPanel variation={activeVariation} anchorFen={position.fen}
@@ -894,14 +924,19 @@ export const App: React.FC = () => {
                     currentFen={currentFen}
                     targetPlayer={settings.playerName}
                     autoStartToken={aiCoachStartToken}
-                    onBackToMainReview={() => setIsAiCoachOpen(false)}
+                    onBackToMainReview={() => {
+                      setIsAiCoachOpen(false);
+                      setAiCoachPreview(null);
+                    }}
                     onSelectPly={selectGamePly}
                     onReanchorToPly={nextPly => {
+                      setAiCoachPreview(null);
                       setAiCoachAnchorPly(nextPly);
                       setAiCoachStartToken(token => token + 1);
                     }}
                     onFlipBoard={() => setIsFlipped((f) => !f)}
                     onExplore={exploreLine}
+                    onPreviewMove={setAiCoachPreview}
                   />
                 ) : (
                   <>

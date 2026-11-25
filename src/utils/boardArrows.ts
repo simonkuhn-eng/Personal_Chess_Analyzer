@@ -1,17 +1,18 @@
 import type { BoardArrow } from './boardPresentation';
 
-export type BoardArrowKind = 'best' | 'threat' | 'mistake';
+export type BoardArrowKind = 'best' | 'threat' | 'mistake' | 'preview';
 export interface DisplayBoardArrow extends BoardArrow { kind: BoardArrowKind }
 type Point = { x: number; y: number };
 const valid = (arrow: BoardArrow | null | undefined): arrow is BoardArrow => Boolean(arrow && /^[a-h][1-8]$/.test(arrow.from) && /^[a-h][1-8]$/.test(arrow.to) && arrow.from !== arrow.to);
 
-export function displayBoardArrows(best?: BoardArrow | null, threats: BoardArrow[] = [], mistake?: BoardArrow | null): DisplayBoardArrow[] {
+export function displayBoardArrows(best?: BoardArrow | null, threats: BoardArrow[] = [], mistake?: BoardArrow | null, preview?: BoardArrow | null): DisplayBoardArrow[] {
   const unique = new Map<string, DisplayBoardArrow>();
-  // One semantic color per move; best takes precedence over lower layers.
-  for (const [kind, list] of [['threat', threats], ['mistake', [mistake]], ['best', [best]]] as const) {
+  // One semantic color per move; preview and best take precedence over lower layers.
+  for (const [kind, list] of [['threat', threats], ['mistake', [mistake]], ['best', [best]], ['preview', [preview]]] as const) {
     for (const arrow of list) if (valid(arrow)) unique.set(arrow.from + arrow.to, { ...arrow, kind });
   }
-  return [...unique.values()].sort((a, b) => ['threat', 'mistake', 'best'].indexOf(a.kind) - ['threat', 'mistake', 'best'].indexOf(b.kind));
+  const order: BoardArrowKind[] = ['threat', 'mistake', 'best', 'preview'];
+  return [...unique.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind));
 }
 
 export function boardSquareCenter(square: string, flipped = false): Point {

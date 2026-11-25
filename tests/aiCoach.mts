@@ -15,6 +15,7 @@ const {
 const { AiCoachMcpServer } = require('../electron/aiCoachMcp') as typeof import('../electron/aiCoachMcp');
 const { buildCoachPrompt, resolveAgyModelId } = require('../electron/aiCoach') as typeof import('../electron/aiCoach');
 const { APP_SETTINGS_DEFAULTS, normalizeAppSettings } = require('../src/types/chess') as typeof import('../src/types/chess');
+const { parseCoachMoveSegments } = require('../src/utils/coachMoveLinks') as typeof import('../src/utils/coachMoveLinks');
 
 function runChessPositionFactsTests() {
   // 1. Knight capture creating doubled pawns on the c-file (bxc6 after Nxc6 when c7 pawn exists)
@@ -245,10 +246,65 @@ function runAiCoachModelAndPromptTests() {
   console.log('✓ aiCoach model allowlist & prompt builder tests passed');
 }
 
+function runCoachMoveLinksTests() {
+  // Queenside b4 tactical setup (White Pawn a3, Nc3, Bishop targets on c5/Nc6 -> Nxb4 axb4 Bxb4+)
+  const beforeSeq = applyMoveSequence('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', [
+    'e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'a3', 'Nf6', 'Nc3', 'O-O',
+  ]);
+  const afterSeq = applyMoveSequence(beforeSeq.fen, ['b4']);
+  const ctx = {
+    currentFen: afterSeq.fen,
+    anchorFenBefore: beforeSeq.fen,
+    anchorFenAfter: afterSeq.fen,
+    anchorMoveNumber: 6,
+    anchorColor: 'w' as const,
+  };
+
+  // 1. German SAN (Sd2 / Lxb4 / Sxb4)
+  const deParsed = parseCoachMoveSegments('Besser war **6. d3** statt 6. b4?, sonst droht 6... Sxb4! und 7. axb4 Lxb4.', ctx);
+  const deMoves = deParsed.segments.filter((s) => s.type === 'move');
+  assert.ok(deMoves.some((m) => m.preview.san === 'd3' && m.preview.uci === 'd2d3'));
+  assert.ok(deMoves.some((m) => m.preview.san === 'Nxb4' && m.preview.uci === 'c6b4'));
+  assert.ok(deMoves.some((m) => m.preview.san === 'axb4' && m.preview.uci === 'a3b4'));
+  assert.ok(deMoves.some((m) => m.preview.san === 'Bxb4' && m.preview.uci === 'c5b4'));
+
+  // Castling normalization (0-0 / O-O)
+  const castlePos = applyMoveSequence('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', [
+    'e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5',
+  ]);
+  const castleParsed = parseCoachMoveSegments('Rochiere ruhig mit 0-0.', { currentFen: castlePos.fen });
+  assert.equal(castleParsed.segments.filter((s) => s.type === 'move')[0]?.preview.san, 'O-O');
+
+  // 2. English SAN + chained sequence across captures + Bxc3/Bxg3 + bare-square suppression
+  const enChain = parseCoachMoveSegments('After 6... Nxb4! and 7. axb4 Bxb4, pressure mounts on c3.', ctx);
+  const enMoves = enChain.segments.filter((s) => s.type === 'move').map((m) => m.preview.san);
+  assert.deepEqual(enMoves, ['Nxb4', 'axb4', 'Bxb4']);
+
+  // Bxg3 test (Black bishop on d6 takes pawn on g3)
+  const bxg3Diag = applyMoveSequence('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', [
+    'e4', 'e6', 'g3', 'Bd6', 'h3', 'Nc6', 'Nf3',
+  ]);
+  const bxg3Parsed = parseCoachMoveSegments('Watch out for **Bxg3**! Do not drop the pawn on g3.', {
+    currentFen: bxg3Diag.fen,
+  });
+  const bxg3Moves = bxg3Parsed.segments.filter((s) => s.type === 'move');
+  assert.equal(bxg3Moves.length, 1);
+  assert.equal(bxg3Moves[0]?.preview.san, 'Bxg3');
+  assert.equal(bxg3Moves[0]?.preview.to, 'g3');
+
+  // 3. Bare-square suppression (auf c3 / on c3) + illegal move rejection
+  const suppressed = parseCoachMoveSegments('Dein Springer auf c3 steht aktiv, nicht **Qh8#** spielen.', {
+    currentFen: beforeSeq.fen,
+  });
+  assert.equal(suppressed.segments.filter((s) => s.type === 'move').length, 0);
+  console.log('✓ parseCoachMoveLinks unit tests passed');
+}
+
 async function main() {
   runChessPositionFactsTests();
   await runMcpServerTests();
   runAiCoachModelAndPromptTests();
+  runCoachMoveLinksTests();
   console.log('All AI Coach tests passed!');
 }
 
