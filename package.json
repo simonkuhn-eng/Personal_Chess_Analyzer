@@ -1,0 +1,49 @@
+{
+  "name": "personal-chess-analyzer",
+  "version": "1.0.0",
+  "description": "Personal Chess Analysis Desktop App with Chess.com styling and Stockfish",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.electron.json && electron .",
+    "dev": "concurrently -k -n \"VITE,ELECTRON\" -c \"blue,green\" \"vite\" \"cross-env NODE_ENV=development wait-on tcp:5173 && tsc -p tsconfig.electron.json --watch\" \"cross-env NODE_ENV=development wait-on tcp:5173 && wait-on file:dist-electron/electron/main.js && electron .\"",
+    "build:vite": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:vite && npm run build:electron",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "test": "tsx tests/regression.mts && tsx tests/highlights.mts && tsx tests/productFixes.mts && tsx tests/dataPersistence.mts",
+    "generate:opening-catalog": "tsx scripts/generateOpeningCatalog.mts",
+    "package:win": "node scripts/package-windows.mjs",
+    "start": "electron .",
+    "start:standalone": "node -e \"const fs=require('fs'),cp=require('child_process'),path=require('path');const exe=path.resolve('release/PersonalChessAnalyzer-win32-x64/PersonalChessAnalyzer.exe');if(!fs.existsSync(exe)){console.error('Standalone-Build fehlt. Bitte zuerst \\\"npm run package:win\\\" ausfuehren.');process.exit(1);}const env={...process.env,NODE_ENV:'production'};delete env.ELECTRON_RUN_AS_NODE;const res=cp.spawnSync(exe,[],{cwd:path.dirname(exe),stdio:'inherit',env});process.exit(res.status??0);\""
+  },
+  "keywords": [
+    "chess",
+    "stockfish",
+    "chess.com",
+    "analysis"
+  ],
+  "author": "simonkuhn-eng",
+  "license": "MIT",
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "chess.js": "^1.4.0",
+    "lucide-react": "^1.47.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^44.4.3",
+    "tsx": "^4.20.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "wait-on": "^9.1.0"
+  }
+}

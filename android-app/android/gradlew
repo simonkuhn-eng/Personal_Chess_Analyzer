@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Gradle start up script for POSIX (with fallback check if gradle-wrapper.jar is absent)
+#
+
+APP_HOME=$( cd "${APP_HOME:-./}" && pwd -P ) || exit
+CLASSPATH="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ ! -f "$CLASSPATH" ]; then
+    if command -v gradle >/dev/null 2>&1; then
+        echo "gradle-wrapper.jar not yet generated; delegating to system gradle..."
+        exec gradle "$@"
+    fi
+    echo "ERROR: $CLASSPATH does not exist and system gradle was not found on PATH." >&2
+    echo "Bootstrap once with: gradle wrapper --gradle-version 8.7" >&2
+    exit 1
+fi
+
+if [ -n "$JAVA_HOME" ]; then
+    JAVACMD="$JAVA_HOME/bin/java"
+else
+    JAVACMD="java"
+fi
+
+exec "$JAVACMD" $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "-Dorg.gradle.appname=gradlew" -classpath "$CLASSPATH" org.gradle.wrapper.GradleWrapperMain "$@"

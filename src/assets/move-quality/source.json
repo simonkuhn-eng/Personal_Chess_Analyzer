@@ -1,0 +1,125 @@
+{
+  "method": "Original-pixel crops, edge unmatting, premultiplied-alpha Lanczos resize",
+  "size": [
+    128,
+    128
+  ],
+  "sources": {
+    "zugbewertungen.png": {
+      "sha256": "5937cf9229e64e348b9af07afeaf48aecfc17018d490276efdd38c263e9fdaf7",
+      "size": [
+        828,
+        1792
+      ]
+    },
+    "zugbewertungen_2.png": {
+      "sha256": "7568ac554543502a4289e865178ee4f31198cd028309c50c5b71f961a7099f7e",
+      "size": [
+        1080,
+        2340
+      ]
+    }
+  },
+  "icons": {
+    "brilliant": {
+      "source": "zugbewertungen_2.png",
+      "crop": [
+        686,
+        290,
+        754,
+        358
+      ],
+      "bytes": 22139
+    },
+    "great": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        240,
+        565,
+        288
+      ],
+      "bytes": 11924
+    },
+    "best": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        321,
+        565,
+        369
+      ],
+      "bytes": 16485
+    },
+    "excellent": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        402,
+        565,
+        450
+      ],
+      "bytes": 14743
+    },
+    "good": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        483,
+        565,
+        531
+      ],
+      "bytes": 15989
+    },
+    "book": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        564,
+        565,
+        612
+      ],
+      "bytes": 13372
+    },
+    "inaccuracy": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        645,
+        565,
+        693
+      ],
+      "bytes": 16106
+    },
+    "mistake": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        726,
+        565,
+        774
+      ],
+      "bytes": 12740
+    },
+    "miss": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        816,
+        565,
+        864
+      ],
+      "bytes": 16173
+    },
+    "blunder": {
+      "source": "zugbewertungen.png",
+      "crop": [
+        517,
+        907,
+        565,
+        955
+      ],
+      "bytes": 18674
+    }
+  }
+}

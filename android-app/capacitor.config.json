@@ -1,0 +1,11 @@
+{
+  "appId": "com.personal.chessanalyzer",
+  "appName": "Personal Chess Analyzer",
+  "webDir": "../dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

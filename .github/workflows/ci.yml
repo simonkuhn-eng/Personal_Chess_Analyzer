@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  verify:
+    name: Typecheck, Tests & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck TypeScript
+        run: npm run typecheck
+
+      - name: Run regression suite
+        run: npm test
+
+      - name: Run AI Coach tests
+        run: npx tsx tests/aiCoach.mts
+
+      - name: Run Training Deck tests
+        run: npx tsx tests/trainingDeckUpgrade.mts
+
+      - name: Build production bundle
+        run: npm run build

@@ -1,0 +1,1 @@
+export { OpeningTrainerView } from './RepertoireTrainerView';

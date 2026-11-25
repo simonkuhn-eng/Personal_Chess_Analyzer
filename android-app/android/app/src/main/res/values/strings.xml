@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Personal Chess Analyzer</string>
+    <string name="export_saved">Backup saved successfully.</string>
+    <string name="export_failed">Could not save backup file.</string>
+    <string name="file_picker_unavailable">No file picker available on this device.</string>
+    <string name="browser_unavailable">No browser available to open external link.</string>
+</resources>

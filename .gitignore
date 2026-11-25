@@ -1,0 +1,73 @@
+# Abhängigkeiten
+node_modules/
+
+# Build-Ausgaben
+dist/
+dist-electron/
+release/
+
+# Stockfish-Binaries (downloadbar, siehe engine/README.txt)
+engine/stockfish.exe
+engine/stockfish/
+
+# Logs & temporäre Dateien
+*.log
+npm-debug.log*
+tmp/
+temp/
+
+# Umgebungsvariablen / Secrets
+.env
+.env.*
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Lokale Datenbanken / Nutzerdaten (falls je im Projektordner)
+*.sqlite
+*.sqlite3
+scripts/eco-cache/
+
+# Android Build, Cache, lokale SDK-Pfade & persönlicher Initial-Seed
+android-app/seed/
+**/mobile-initial-seed.bin
+android-app/android/.gradle/
+android-app/android/build/
+android-app/android/app/build/
+android-app/android/app/src/main/assets/public/
+android-app/android/local.properties
+**/.idea/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Interne Audit-, Planungs- & Arbeitsberichte (nur lokal)
+.omoplans/
+audit/
+REPORT.md
+AGENT_AUDIT_UND_UMSETZUNGSPLAN.md
+ANALYSEFENSTER_PRUEFUNG_2026-10-20.md
+ANWENDER_AUDIT_2026-10-21.md
+AUDIT_NACHPRUEFUNG_2026-09-30.md
+BRILLANZ_UND_VERPASSTE_CHANCEN.md
+BUGFIXES_UND_VARIANTENANALYSE.md
+EINSTELLUNGEN_AGENT_BRIEF.md
+EROEFFNUNGSDIAGNOSE_UND_ANTWORTTRAINING.md
+EROEFFNUNGSTRAINING_NEUAUFBAU.md
+HANDOFF.json
+PRODUKTPLAN_APP_UND_OPEN_SOURCE.md
+STARTUP_PERFORMANCE_UND_ERZWUNGENE_ZUEGE.md
+STATISTIKEN_UMSETZUNG.md
+WARUM_MOTIVKATALOG_UND_UMSETZUNGSPLAN.md
+WARUM_UMSETZUNG.md
+findings.md
+progress.md
+task_plan.md
+zugbewertungen*.png
